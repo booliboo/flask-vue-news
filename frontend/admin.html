@@ -68,7 +68,6 @@
                         </select>
                     </div>
 
-                    <!-- ✨ 修正：将定时发布时间移入卡片内，保持布局整齐 -->
                     <div class="form-item">
                         <label>📅 定时发布时间 (不选则立即发布)</label>
                         <input type="datetime-local" v-model="form.publish_time">
@@ -171,7 +170,6 @@ createApp({
         const userAvatar = ref('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix');
         const newsList = ref([]);
         const categories = ref([]);
-        // ✨ 修改：补全 form 的字段
         const form = ref({ title: '', content: '', category_id: '', publish_time: '' });
         const imgName = ref('');
         const fileName = ref('');
@@ -237,12 +235,10 @@ createApp({
                 const res = await axios.get(`${API}/stats/category`);
                 
                 const option = {
-                    // ✨ 提示框优化
                     tooltip: { 
                         trigger: 'item',
                         formatter: '{b}: <b>{c}条</b> ({d}%)' 
                     },
-                    // ✨ 图例优化：放在底部，开启滚动防止遮挡
                     legend: {
                         bottom: '0',
                         left: 'center',
@@ -254,10 +250,7 @@ createApp({
                     series: [{
                         name: '资讯分类',
                         type: 'pie',
-                        // ✨ 半径优化：第一位是内径（实现环形图更高级），第二位是外径
-                        // 调小外径（如从 75% 降到 60%）可以给侧边标签留出空间
                         radius: ['40%', '60%'], 
-                        // ✨ 中心点优化：中心点稍微往上抬一点，给底部的图例留空间
                         center: ['50%', '45%'],
                         avoidLabelOverlap: true, // 核心：开启自动防止标签重叠
                         itemStyle: {
@@ -265,7 +258,6 @@ createApp({
                             borderColor: '#fff',
                             borderWidth: 2
                         },
-                        // ✨ 标签格式优化
                         label: {
                             show: true,
                             position: 'outside', // 标签放在外部
@@ -273,22 +265,20 @@ createApp({
                             fontSize: 11,
                             color: '#666'
                         },
-                        // ✨ 引导线优化
                         labelLine: {
                             show: true,
-                            length: 10,  // 第一段线长
-                            length2: 15, // 第二段线长
+                            length: 10,  
+                            length2: 15, 
                             smooth: true
                         },
                         data: res.data,
-                        // 高级配色方案
                         color: ['#FF6B6B', '#4D96FF', '#FFD93D', '#6BCB77', '#9276FF', '#FFA33C', '#26C6DA']
                     }]
                 };
 
                 myChart.setOption(option);
 
-                // ✨ 响应式处理：窗口缩放时自动重绘
+                // 响应式处理：窗口缩放时自动重绘
                 window.addEventListener('resize', () => myChart.resize());
 
             } catch (e) {

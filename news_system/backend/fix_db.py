@@ -7,7 +7,6 @@ with app.app_context():
     print("正在创建新表...")
     db.create_all()
     
-    # 顺便把分类初始化了，防止首页没分类
     from models import Category, User
     from werkzeug.security import generate_password_hash
     

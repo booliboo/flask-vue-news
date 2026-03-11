@@ -54,7 +54,7 @@ class ReadRecord(db.Model):
     scroll_pos = db.Column(db.Integer, default=0) 
     read_at = db.Column(db.DateTime, default=datetime.now)
 
-# 6. 收藏模型 (✨ 补上这个)
+# 6. 收藏模型 
 class Favorite(db.Model):
     __tablename__ = "favorite"
     id = db.Column(db.Integer, primary_key=True)
@@ -62,7 +62,7 @@ class Favorite(db.Model):
     news_id = db.Column(db.Integer, db.ForeignKey("news.id"))
     created_at = db.Column(db.DateTime, default=datetime.now)
 
-# 7. 点赞/点踩记录模型 (✨ 补上这个，用于防止刷票)
+# 7. 点赞/点踩记录模型 (用于防止刷票)
 class ActionRecord(db.Model):
     __tablename__ = "action_record"
     id = db.Column(db.Integer, primary_key=True)

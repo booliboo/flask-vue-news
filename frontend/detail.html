@@ -84,7 +84,7 @@
             <a :href="article.file_url" :download="getFileName(article.file_url)" class="download-btn">📥 立即下载</a>
         </div>
 
-        <!-- 操作栏：增加了收藏按钮 -->
+        <!-- 操作栏 -->
         <div class="action-bar">
             <div class="btn-action" 
                 :style="{ background: userAction === 'like' ? '#ffebeb' : '', color: userAction === 'like' ? 'var(--primary)' : '' }"
@@ -92,7 +92,7 @@
                 👍 赞成 ({{ article.likes }})
             </div>
             
-            <!-- ✨ 新增的收藏按钮 UI -->
+            <!-- 收藏按钮 -->
             <div class="btn-action" 
                 :style="{ background: article.is_favorite ? '#fff7e6' : '', color: article.is_favorite ? 'var(--fav)' : '', borderColor: article.is_favorite ? 'var(--fav)' : '' }"
                 @click="toggleFavorite">
@@ -147,7 +147,6 @@
                     const res = await axios.get(`${API_BASE}/news/${id}`);
                     article.value = res.data;
                     
-                    // ✨ 恢复进度逻辑
                     if (res.data.last_pos > 0) {
                         setTimeout(() => {
                             window.scrollTo({ top: res.data.last_pos, behavior: 'smooth' });
@@ -156,7 +155,7 @@
                 } catch (e) { alert("资讯不存在"); }
             };
 
-            // ✨ 保存进度逻辑
+            // 保存进度逻辑
             window.onbeforeunload = () => {
                 if (username.value) {
                     const id = getNewsId();
@@ -165,7 +164,7 @@
                 }
             };
 
-            // ✨ 收藏切换逻辑 (记得在 return 中返回)
+            //  收藏切换逻辑 (记得在 return 中返回)
             const toggleFavorite = async () => {
                 if (!username.value) return alert("请先登录");
                 const id = getNewsId();
@@ -218,7 +217,7 @@
 
             return { 
                 article, commentText, userAction, username, 
-                doAction, postComment, logout, toggleFavorite, // ✨ 必须在这里返回
+                doAction, postComment, logout, toggleFavorite, // 返回
                 getFileExt, getFileName, getFileIcon 
             };
         }

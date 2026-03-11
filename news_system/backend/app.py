@@ -24,7 +24,6 @@ SERVER_URL = app.config["SERVER_URL"]
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# --- ✨ 修改部分：增加具体词汇提示逻辑 ✨ ---
 SENSITIVE_WORDS_FILE = "sensitive_words.txt"
 
 def load_sensitive_words():
@@ -121,7 +120,7 @@ def get_news():
         query = News.query
         if not show_all:
             query = query.filter_by(status="published")
-            # ✨ 核心改动：普通用户只能看到发布时间 <= 现在的新闻
+            # 普通用户只能看到发布时间 <= 现在的新闻
             query = query.filter(News.publish_time <= datetime.now())
         if keyword:
             query = query.filter(News.title.like(f"%{keyword}%"))
@@ -149,9 +148,6 @@ def get_news():
     except Exception as e:
         return jsonify({"msg": "服务器查询错误", "error": str(e)}), 500
 
-# --- ✨ 修改部分：发布新闻增加违规词具体提示 ✨ ---
-# --- 优化后的发布新闻接口 ---
-# --- ✨ 优化后的发布新闻接口：强制频道校验 + 违规词强提示 ✨ ---
 @app.route("/api/news", methods=["POST"])
 @login_required()
 def add_news():
@@ -160,7 +156,7 @@ def add_news():
         content = request.form.get("content")
         cat_id = request.form.get("category_id")
         
-        # 1. 【核心改动】强制校验：不选频道直接返回 400 提示，不再默认分配
+        # 1. 不选频道直接返回 400 提示，不再默认分配
         if not cat_id or cat_id in ['undefined', 'null', '', 'None']:
             return jsonify({"msg": "发布失败：请选择所属频道（类别）！"}), 400
         
@@ -176,7 +172,7 @@ def add_news():
         except (ValueError, TypeError):
             return jsonify({"msg": "频道 ID 格式错误"}), 400
 
-        # 4. 文件上传逻辑（保持原样）
+        # 4. 文件上传逻辑
         img_file = request.files.get("image_file")
         img_path = ""
         if img_file and img_file.filename != '':
@@ -258,7 +254,7 @@ def audit_news(id):
     return jsonify({"msg": "审核成功"})
 
 @app.route("/api/news/<int:id>/action", methods=["POST"])
-@login_required() # ✨ 必须登录才能点赞，这样我们才能拿到 user_id
+@login_required() 
 def news_action(id):
     news = db.session.get(News, id)
     if not news: return jsonify({"msg": "新闻不存在"}), 404
@@ -267,18 +263,18 @@ def news_action(id):
     data = request.json
     new_action = data.get("action") # 'like' 或 'dislike'
     
-    # 1. 查找该用户对该新闻的现有操作记录
+    # 查找该用户对该新闻的现有操作记录
     existing_record = ActionRecord.query.filter_by(user_id=user_id, news_id=id).first()
     
     if existing_record:
         if existing_record.action_type == new_action:
-            # ✨ 情况A：用户点击了相同的按钮 -> 取消操作（点赞减一，删除记录）
+            # A：用户点击了相同的按钮 -> 取消操作（点赞减一，删除记录）
             if new_action == 'like': news.likes = max(0, news.likes - 1)
             else: news.dislikes = max(0, news.dislikes - 1)
             db.session.delete(existing_record)
             current_state = None
         else:
-            # ✨ 情况B：用户切换了操作（比如从点赞换成点踩）
+            # B：用户切换了操作（比如从点赞换成点踩）
             if new_action == 'like':
                 news.likes += 1
                 news.dislikes = max(0, news.dislikes - 1)
@@ -288,7 +284,7 @@ def news_action(id):
             existing_record.action_type = new_action
             current_state = new_action
     else:
-        # ✨ 情况C：第一次操作
+        # C：第一次操作
         if new_action == 'like': news.likes += 1
         else: news.dislikes += 1
         db.session.add(ActionRecord(user_id=user_id, news_id=id, action_type=new_action))
@@ -362,7 +358,7 @@ def news_detail(id):
     news = db.session.get(News, id)
     if not news: return jsonify({"msg": "新闻不存在"}), 404
     
-    # --- ✨ 逻辑增强：识别当前用户（如果登录了） ---
+    # 识别当前用户（如果登录了） 
     current_user_id = None
     is_fav = False
     last_pos = 0
@@ -373,14 +369,14 @@ def news_detail(id):
             token = auth.split()[1]
             data = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
             current_user_id = data.get("user_id")
-            # 1. 检查是否收藏
+            # 检查是否收藏
             is_fav = Favorite.query.filter_by(user_id=current_user_id, news_id=id).first() is not None
-            # 2. 获取上次阅读进度
+            # 获取上次阅读进度
             last_record = ReadRecord.query.filter_by(news_id=id, user_id=current_user_id).order_by(ReadRecord.read_at.desc()).first()
             if last_record: last_pos = last_record.scroll_pos
         except: pass
 
-    # --- ✨ 逻辑增强：创建带 user_id 的阅读记录 ---
+    # 逻辑增强：创建带 user_id 的阅读记录 
     db.session.add(ReadRecord(news_id=id, user_id=current_user_id, read_at=datetime.now()))
     db.session.commit()
     
@@ -395,8 +391,8 @@ def news_detail(id):
         "dislikes": news.dislikes or 0,
         "views": ReadRecord.query.filter_by(news_id=id).count(),
         "created_at": news.created_at.strftime("%Y-%m-%d %H:%M"),
-        "is_favorite": is_fav,   # ✨ 返回收藏状态
-        "last_pos": last_pos,     # ✨ 返回上次阅读位置
+        "is_favorite": is_fav,   #  返回收藏状态
+        "last_pos": last_pos,     # 返回上次阅读位置
         "comments": [{"username": c.username, "content": c.content, "created_at": c.created_at.strftime("%Y-%m-%d %H:%M")} for c in comments]
     })
 @app.route("/api/news/<int:id>/favorite", methods=["POST"])
@@ -473,9 +469,9 @@ if __name__ == "__main__":
         
         admin_user = User.query.filter_by(username="admin").first()
         if not admin_user:
-            db.session.add(User(username="admin", password=generate_password_hash("0910"), role="admin"))
+            db.session.add(User(username="admin", password=generate_password_hash("admin"), role="admin"))
         else:
-            admin_user.password = generate_password_hash("0910")
-        
+            admin_user.password = generate_password_hash("admin")
+
         db.session.commit()
     app.run(debug=True)

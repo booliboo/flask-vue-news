@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 
 def seed_data():
-    # ✨ 核心修复：确保所有数据库操作都在这个 with 块的缩进内
     with app.app_context():
         print("🚀 开始生成全品类测试数据...")
 
@@ -49,7 +48,7 @@ def seed_data():
             ]
         }
 
-        # 3. 开始循环插入 (注意这里的缩进，必须在 with 块内)
+        # 3. 开始循环插入 
         total_count = 0
         for cat_name, titles in news_data.items():
             # 获取或创建分类
