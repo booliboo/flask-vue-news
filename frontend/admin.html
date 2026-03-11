@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>后台管理 - 新闻发布中心</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/echarts/dist/echarts.min.js"></script>
+    <style>
+    :root { --primary: #c00; --sidebar-w: 260px; --accent: #1a1a1a; }
+    body { margin: 0; display: flex; background: #e4ebf0; font-family: "Segoe UI", Roboto, sans-serif; }
+    .sidebar { width: var(--sidebar-w); background: #fff; color: #333; height: 100vh; position: fixed; z-index: 100; box-shadow: 4px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+    .sidebar-header { padding: 40px 24px; font-size: 22px; font-weight: 800; color: #1a1a1a; display: flex; align-items: center; }
+    .sidebar-header::before { content: ''; width: 4px; height: 20px; background: var(--primary); margin-right: 12px; border-radius: 2px; }
+    .menu-item { margin: 8px 16px; padding: 12px 20px; color: #666; cursor: pointer; transition: 0.3s; text-decoration: none; display: flex; align-items: center; border-radius: 8px; font-size: 15px; }
+    .menu-item:hover { color: var(--primary); background: #fff5f5; }
+    .menu-item.active { color: #fff; background: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .main { margin-left: var(--sidebar-w); flex: 1; padding: 30px; min-width: 1000px; }
+    .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: #fff; padding: 18px 30px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.03); }
+    .card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px;}
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 24px; color: #1f1f1f; display: flex; justify-content: space-between; align-items: center; }
+    .form-item { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: 600; color: #444; font-size: 14px;}
+    input, textarea, select { width: 100%; max-width: 600px; padding: 12px; border: 1px solid #dcdfe6; border-radius: 6px; box-sizing: border-box; font-size: 14px; outline: none; }
+    input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(204,0,0,0.1); }
+    .btn-post { padding: 14px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+    .btn-post:hover { opacity: 0.9; transform: translateY(-1px); }
+    .profile-layout { display: flex; gap: 40px; align-items: flex-start; }
+    .avatar-section { flex-shrink: 0; text-align: center; width: 200px; }
+    .avatar-big { width: 150px; height: 150px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); object-fit: cover;}
+    .tag { padding: 4px 10px; border-radius: 4px; font-size: 12px; margin-right: 5px;}
+    .tag-published { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+    .tag-pending { background: #fff1f0; color: #f5222d; border: 1px solid #ffa39e; } /* 拦截态用红色 */
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 12px; text-align: left; color: #8c8c8c; border-bottom: 2px solid #f0f0f0; }
+    td { padding: 15px 12px; border-bottom: 1px solid #f0f0f0; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="sidebar">
+        <div class="sidebar-header">新闻管理系统</div>
+        <a href="home.html" class="menu-item">🏠 网站首页</a>
+        <div :class="['menu-item', currentTab === 'publish' ? 'active' : '']" @click="setTab('publish')">📝 发布与统计</div>
+        <div :class="['menu-item', currentTab === 'profile' ? 'active' : '']" @click="setTab('profile')">👤 个人中心</div>
+        <div class="menu-item" @click="logout" style="margin-top: auto; color: #f5222d;">🚪 退出登录</div>
+    </div>
+
+    <div class="main">
+        <div class="top-nav">
+            <h2 style="margin:0">{{ currentTab === 'publish' ? '管理仪表盘' : '个人主页' }}</h2>
+            <div>管理员: <b style="color:var(--primary)">{{username}}</b></div>
+        </div>
+
+        <!-- 发布与统计标签页 -->
+        <div v-if="currentTab === 'publish'">
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; margin-bottom: 30px;">
+                <!-- 撰写资讯卡片 -->
+                <div class="card">
+                    <div class="card-title">撰写并发布新资讯</div>
+                    <div class="form-item">
+                        <input v-model="form.title" placeholder="请输入资讯标题...">
+                    </div>
+                    <div class="form-item">
+                        <select v-model="form.category_id">
+                            <option value="" disabled>选择所属频道</option>
+                            <option v-for="c in categories" :key="c.id" :value="c.id">{{c.name}}</option>
+                        </select>
+                    </div>
+
+                    <!-- ✨ 修正：将定时发布时间移入卡片内，保持布局整齐 -->
+                    <div class="form-item">
+                        <label>📅 定时发布时间 (不选则立即发布)</label>
+                        <input type="datetime-local" v-model="form.publish_time">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div style="border: 2px dashed #eee; padding: 15px; text-align: center; cursor: pointer; border-radius: 8px;" @click="$refs.imgInput.click()">
+                            {{ imgName || '🖼️ 上传封面图' }}
+                            <input type="file" ref="imgInput" hidden @change="onImgChange" accept="image/*">
+                        </div>
+                        <div style="border: 2px dashed #eee; padding: 15px; text-align: center; cursor: pointer; border-radius: 8px;" @click="$refs.fileInput.click()">
+                            {{ fileName || '📎 上传附件' }}
+                            <input type="file" ref="fileInput" hidden @change="onFileChange" accept=".pdf,.doc">
+                        </div>
+                    </div>
+                    <textarea v-model="form.content" rows="8" placeholder="正文内容..."></textarea>
+                    <button class="btn-post" @click="submitNews" style="margin-top: 20px; width: 100%;">🚀 立即公开发布</button>
+                </div>
+
+                <!-- 饼图统计卡片 -->
+                <div class="card">
+                    <div class="card-title">资讯分类分布</div>
+                    <div id="pie-chart" style="height: 450px; width: 100%; "></div>
+                </div>
+            </div>
+
+            <!-- 内容管理列表 -->
+            <div class="card">
+                <div class="card-title">全站内容管理</div>
+                <table>
+                    <thead>
+                        <tr><th>标题</th><th>分类</th><th>状态</th><th>操作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="n in newsList" :key="n.id">
+                            <td><b>{{n.title}}</b></td>
+                            <td>{{n.category_name}}</td>
+                            <td>
+                                <span :class="['tag', n.status === 'published' ? 'tag-published' : 'tag-pending']">
+                                    {{ n.status === 'published' ? '展示中' : '已拦截' }}
+                                </span>
+                            </td>
+                            <td>
+                                <button v-if="n.status === 'blocked'" @click="approve(n.id)" style="color:#52c41a; border:none; background:none; cursor:pointer; font-weight:bold;">通过审核</button>
+                                <button @click="delNews(n.id)" style="color:#f5222d; border:none; background:none; cursor:pointer; margin-left:10px; font-weight:bold;">删除</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 个人中心标签页 -->
+        <div v-if="currentTab === 'profile'">
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                <div class="card-title">账号资料管理</div>
+                <div class="profile-layout">
+                    <div class="avatar-section">
+                        <img :src="userAvatar" class="avatar-big">
+                        <div style="margin-top: 20px;">
+                            <button @click="$refs.avatarInput.click()" style="background:#f0f0f0; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px;">更换头像</button>
+                            <input type="file" ref="avatarInput" hidden @change="handleAvatarChange" accept="image/*">
+                        </div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="form-item"><label>昵称</label><input v-model="profileForm.nickname"></div>
+                        <div class="form-item"><label>管理员简介</label><textarea v-model="profileForm.bio" style="height: 100px;"></textarea></div>
+                        <button class="btn-post" @click="saveProfile" style="width: 200px;">保存修改</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted, nextTick } = Vue;
+
+axios.interceptors.request.use(config => {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+});
+
+axios.interceptors.response.use(res => res, err => {
+    if (err.response?.status === 401) {
+        alert("登录失效");
+        localStorage.clear();
+        window.location.href = 'login.html';
+    }
+    return Promise.reject(err);
+});
+
+const API = "http://127.0.0.1:5000/api";
+
+createApp({
+    setup() {
+        const currentTab = ref('publish');
+        const username = ref(localStorage.getItem('username') || '管理员');
+        const userAvatar = ref('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix');
+        const newsList = ref([]);
+        const categories = ref([]);
+        // ✨ 修改：补全 form 的字段
+        const form = ref({ title: '', content: '', category_id: '', publish_time: '' });
+        const imgName = ref('');
+        const fileName = ref('');
+        const imgInput = ref(null);
+        const fileInput = ref(null);
+        const profileForm = ref({ nickname: '', bio: '' });
+
+        const setTab = (tab) => {
+            currentTab.value = tab;
+            if (tab === 'publish') nextTick(() => renderChart());
+        };
+
+        const loadData = async () => {
+            try {
+                const [nRes, cRes, pRes] = await Promise.all([
+                    axios.get(`${API}/news?all=1`),
+                    axios.get(`${API}/categories`),
+                    axios.get(`${API}/user/profile`)
+                ]);
+                newsList.value = nRes.data.list;
+                categories.value = cRes.data;
+                profileForm.value.nickname = pRes.data.nickname;
+                profileForm.value.bio = pRes.data.bio;
+                if(currentTab.value === 'publish') renderChart();
+            } catch (e) {}
+        };
+
+        const submitNews = async () => {
+            if(!form.value.title || !form.value.category_id) return alert("标题和频道必填");
+            const fd = new FormData();
+            fd.append('title', form.value.title);
+            fd.append('content', form.value.content);
+            fd.append('category_id', form.value.category_id);
+            if(form.value.publish_time) fd.append('publish_time', form.value.publish_time);
+            if(imgInput.value.files[0]) fd.append('image_file', imgInput.value.files[0]);
+            if(fileInput.value.files[0]) fd.append('attachment_file', fileInput.value.files[0]);
+
+            try {
+                const res = await axios.post(`${API}/news`, fd);
+                alert(res.data.msg);
+                location.reload();
+            } catch (e) {
+                alert(e.response?.data?.msg || "发布失败");
+            }
+        };
+
+        const saveProfile = async () => {
+            await axios.post(`${API}/user/profile`, profileForm.value);
+            localStorage.setItem('username', profileForm.value.nickname);
+            alert("资料已同步");
+        };
+
+        const renderChart = async () => {
+            const chartDom = document.getElementById('pie-chart');
+            if(!chartDom) return;
+
+            // 1. 初始化或获取实例
+            let myChart = echarts.getInstanceByDom(chartDom);
+            if (myChart) myChart.dispose(); // 切换标签时建议销毁重建，保证动画流畅
+            myChart = echarts.init(chartDom);
+
+            try {
+                const res = await axios.get(`${API}/stats/category`);
+                
+                const option = {
+                    // ✨ 提示框优化
+                    tooltip: { 
+                        trigger: 'item',
+                        formatter: '{b}: <b>{c}条</b> ({d}%)' 
+                    },
+                    // ✨ 图例优化：放在底部，开启滚动防止遮挡
+                    legend: {
+                        bottom: '0',
+                        left: 'center',
+                        type: 'scroll',
+                        itemWidth: 10,
+                        itemHeight: 10,
+                        textStyle: { fontSize: 12 }
+                    },
+                    series: [{
+                        name: '资讯分类',
+                        type: 'pie',
+                        // ✨ 半径优化：第一位是内径（实现环形图更高级），第二位是外径
+                        // 调小外径（如从 75% 降到 60%）可以给侧边标签留出空间
+                        radius: ['40%', '60%'], 
+                        // ✨ 中心点优化：中心点稍微往上抬一点，给底部的图例留空间
+                        center: ['50%', '45%'],
+                        avoidLabelOverlap: true, // 核心：开启自动防止标签重叠
+                        itemStyle: {
+                            borderRadius: 8,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        // ✨ 标签格式优化
+                        label: {
+                            show: true,
+                            position: 'outside', // 标签放在外部
+                            formatter: '{b}\n{d}%', // 换行显示名称和比例，减小横向空间占用
+                            fontSize: 11,
+                            color: '#666'
+                        },
+                        // ✨ 引导线优化
+                        labelLine: {
+                            show: true,
+                            length: 10,  // 第一段线长
+                            length2: 15, // 第二段线长
+                            smooth: true
+                        },
+                        data: res.data,
+                        // 高级配色方案
+                        color: ['#FF6B6B', '#4D96FF', '#FFD93D', '#6BCB77', '#9276FF', '#FFA33C', '#26C6DA']
+                    }]
+                };
+
+                myChart.setOption(option);
+
+                // ✨ 响应式处理：窗口缩放时自动重绘
+                window.addEventListener('resize', () => myChart.resize());
+
+            } catch (e) {
+                console.error("饼图数据加载失败", e);
+            }
+        };
+
+        const approve = async (id) => { await axios.post(`${API}/news/${id}/audit`); loadData(); };
+        const delNews = async (id) => { if(confirm("确定删除？")) { await axios.delete(`${API}/news/${id}`); loadData(); } };
+        const onImgChange = (e) => imgName.value = e.target.files[0]?.name || '';
+        const onFileChange = (e) => fileName.value = e.target.files[0]?.name || '';
+        const handleAvatarChange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => userAvatar.value = ev.target.result;
+            reader.readAsDataURL(e.target.files[0]);
+        };
+        const logout = () => { localStorage.clear(); location.href = 'login.html'; };
+
+        onMounted(loadData);
+        return { 
+            currentTab, setTab, username, userAvatar, profileForm, newsList, categories, 
+            form, imgName, fileName, imgInput, fileInput,
+            saveProfile, handleAvatarChange, onImgChange, onFileChange, submitNews, approve, delNews, logout 
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

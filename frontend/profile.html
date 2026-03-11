@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>个人中心 - 新闻资讯中心</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        :root { --primary: #c00; --sidebar-w: 260px; --bg: #f4f7f9; --card-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        body { margin: 0; display: flex; background: var(--bg); font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #333; }
+        .sidebar { width: var(--sidebar-w); background: #fff; height: 100vh; position: fixed; box-shadow: 2px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; z-index: 100; }
+        .sidebar-header { padding: 40px 24px; font-size: 22px; font-weight: 800; color: var(--primary); border-bottom: 1px solid #f5f5f5; letter-spacing: 1px; }
+        .menu-item { margin: 8px 18px; padding: 14px 22px; color: #666; cursor: pointer; transition: 0.3s; text-decoration: none; display: flex; align-items: center; border-radius: 10px; font-size: 15px; }
+        .menu-item:hover { background: #f9f9f9; color: var(--primary); }
+        .menu-item.active { background: #1a1a1a; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .main { margin-left: var(--sidebar-w); flex: 1; padding: 60px 80px; min-width: 800px; }
+        .card { background: #fff; border-radius: 20px; padding: 50px; box-shadow: var(--card-shadow); }
+        .user-hero { display: flex; align-items: center; gap: 45px; padding-bottom: 45px; border-bottom: 1px solid #f0f0f0; margin-bottom: 40px; }
+        .avatar-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+        .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .user-info h2 { margin: 0 0 15px 0; font-size: 28px; font-weight: 700; display: flex; align-items: center; }
+        .role-badge { font-size: 13px; font-weight: normal; background: #f0f0f0; color: #666; padding: 4px 12px; border-radius: 6px; margin-left: 15px; }
+        .user-stats { display: flex; gap: 40px; color: #888; font-size: 15px; margin-top: 10px; }
+        .stat-item b { color: #1a1a1a; font-size: 22px; margin-right: 6px; font-family: "Georgia", serif; }
+        .tabs-nav { display: flex; gap: 45px; margin-bottom: 40px; border-bottom: 1px solid #f0f0f0; }
+        .tab-link { padding: 15px 5px; cursor: pointer; color: #999; position: relative; font-size: 16px; transition: 0.3s; }
+        .tab-link:hover { color: var(--primary); }
+        .tab-link.active { color: var(--primary); font-weight: bold; }
+        .tab-link.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 3px; background: var(--primary); border-radius: 3px; }
+        .form-group { margin-bottom: 30px; }
+        .form-group label { display: block; margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #444; }
+        input, textarea { width: 100%; max-width: 600px; padding: 14px 18px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 15px; outline: none; transition: 0.3s; background: #fafafa; }
+        input:focus, textarea:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px rgba(204,0,0,0.05); }
+        .btn-save { background: #1a1a1a; color: #fff; border: none; padding: 15px 45px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.3s; margin-top: 10px; }
+        .btn-save:hover { background: var(--primary); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(204,0,0,0.2); }
+        .list-item { padding: 25px 15px; border-bottom: 1px solid #f5f5f5; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; }
+        .list-item:hover { background: #fcfcfc; padding-left: 25px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="sidebar">
+        <div class="sidebar-header">新闻资讯中心</div>
+        <a href="home.html" class="menu-item">🏠 浏览首页</a>
+        <div v-if="role === 'admin'" class="menu-item" @click="goToAdmin">⚙️ 后台管理中心</div>
+        <div class="menu-item active">👤 个人中心</div>
+        <div class="menu-item" @click="logout" style="margin-top: auto; color: #f5222d; margin-bottom: 30px;">🚪 退出登录</div>
+    </div>
+
+    <div class="main">
+        <div class="card">
+            <div class="user-hero">
+                <div class="avatar-wrap">
+                    <img :src="userAvatar" class="avatar-img">
+                    <button @click="$refs.fileRef.click()" style="position:absolute; bottom:5px; right:5px; border:none; background:#1a1a1a; color:#fff; border-radius:50%; width:36px; height:36px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">📷</button>
+                    <input type="file" ref="fileRef" hidden @change="handleAvatar" accept="image/*">
+                </div>
+                <div class="user-info">
+                    <h2>{{ profileForm.nickname }} <span class="role-badge">{{ role === 'admin' ? '管理员' : '普通用户' }}</span></h2>
+                    <div class="user-stats">
+                        <div class="stat-item"><b>{{ favoritesList.length }}</b> 收藏</div>
+                        <div class="stat-item"><b>已开启</b> 阅读记忆</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs-nav">
+                <div :class="['tab-link', subTab === 'info' ? 'active' : '']" @click="subTab = 'info'">个人资料</div>
+                <div :class="['tab-link', subTab === 'fav' ? 'active' : '']" @click="subTab = 'fav'">我的收藏</div>
+            </div>
+
+            <!-- 个人资料面板 -->
+            <div v-if="subTab === 'info'">
+                <div class="form-group">
+                    <label>昵称</label>
+                    <input v-model="profileForm.nickname" placeholder="设置你的独特昵称">
+                </div>
+                <div class="form-group">
+                    <label>个人简介</label>
+                    <textarea v-model="profileForm.bio" rows="5" placeholder="介绍一下你自己..."></textarea>
+                </div>
+                <button class="btn-save" @click="saveProfile">保存修改</button>
+            </div>
+
+            <!-- 收藏列表面板 -->
+            <div v-if="subTab === 'fav'">
+                <div v-if="favoritesList.length === 0" style="text-align:center; padding:40px; color:#999;">
+                    暂无收藏内容，快去阅读吧！
+                </div>
+                <div class="list-item" v-for="fav in favoritesList" :key="fav.id">
+                    <div @click="goToDetail(fav.id)" style="cursor:pointer; flex: 1;">
+                        <div style="font-weight:600; font-size:16px; margin-bottom:8px; color:#1a1a1a;">{{ fav.title }}</div>
+                        <div style="font-size:13px; color:#aaa;">发布于：{{ fav.created_at }}</div>
+                    </div>
+                    <button @click="unfavorite(fav.id)" style="color:#999; border:1px solid #eee; background:none; cursor:pointer; padding:6px 15px; border-radius:6px; font-size:13px; transition: 0.3s;">取消收藏</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    axios.defaults.baseURL = "http://127.0.0.1:5000";
+    axios.interceptors.request.use(config => {
+        const token = localStorage.getItem('token');
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
+    });
+
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const role = ref(localStorage.getItem('role') || 'user');
+            const userAvatar = ref('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix');
+            const subTab = ref('info');
+            const favoritesList = ref([]);
+            const profileForm = ref({ nickname: '', bio: '' });
+
+            // 加载所有数据
+            const loadAllData = async () => {
+                try {
+                    // 1. 加载用户资料
+                    const profileRes = await axios.get("/api/user/profile");
+                    profileForm.value.nickname = profileRes.data.nickname;
+                    profileForm.value.bio = profileRes.data.bio;
+                    localStorage.setItem('username', profileRes.data.nickname);
+
+                    // 2. 加载收藏列表
+                    const favRes = await axios.get("/api/user/favorites");
+                    favoritesList.value = favRes.data;
+                } catch (e) {
+                    console.error("加载失败", e);
+                }
+            };
+
+            const saveProfile = async () => {
+                if (!profileForm.value.nickname.trim()) return alert("昵称不能为空");
+                try {
+                    await axios.post("/api/user/profile", profileForm.value);
+                    alert("✅ 资料修改成功！");
+                    loadAllData(); // 刷新界面
+                } catch (e) { alert("保存失败"); }
+            };
+
+            const unfavorite = async (id) => {
+                if (!confirm("确定取消收藏吗？")) return;
+                try {
+                    await axios.post(`/api/news/${id}/favorite`);
+                    loadAllData(); // 刷新列表
+                } catch (e) { alert("操作失败"); }
+            };
+
+            const handleAvatar = (e) => {
+                const file = e.target.files[0];
+                if(file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => userAvatar.value = ev.target.result;
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const logout = () => { localStorage.clear(); window.location.href = 'login.html'; };
+            const goToAdmin = () => { window.location.href = 'admin.html'; };
+            const goToDetail = (id) => { window.location.href = `detail.html?id=${id}`; };
+
+            onMounted(loadAllData);
+
+            return { 
+                role, subTab, profileForm, userAvatar, favoritesList,
+                saveProfile, handleAvatar, logout, goToAdmin, unfavorite, goToDetail 
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
