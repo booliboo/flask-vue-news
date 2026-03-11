@@ -2,9 +2,9 @@
 1. 系统架构
 开发模式：前后端分离架构（B/S 架构）
 通信协议 ：HTTP / RESTful API
-认证方式：JWT (JSON Web Token)
+认证方式：JWT 
 2. 前端技术栈
-核心框架：Vue.js 3 (Composition API)
+核心框架：Vue.js 3 
 网络请求：Axios
 数据可视化：ECharts 5.x
 页面开发：HTML5、CSS3 (Flexbox / Grid)
@@ -20,7 +20,7 @@
 ORM框架：Flask-SQLAlchemy
 数据库驱动：PyMySQL
 5. 核心功能实现
-内容安全：关键词过滤算法（Sensitive Words Filtering）
+内容安全：关键词过滤算法
 交互功能：点赞/点踩幂等记录、实时评论、新闻收藏
-用户体验：阅读进度记忆（Scroll Position Tracking）
+用户体验：阅读进度记忆
 资源管理：多格式附件（PDF/Docx/Image）上传与动态图标识别转换
